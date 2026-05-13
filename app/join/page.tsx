@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -14,7 +14,7 @@ interface GroupPreview {
   inviteCode: string;
 }
 
-export default function JoinPage() {
+function JoinPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -187,6 +187,18 @@ export default function JoinPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen mesh-bg flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+      </div>
+    }>
+      <JoinPageInner />
+    </Suspense>
   );
 }
 
