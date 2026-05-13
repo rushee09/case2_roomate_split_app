@@ -46,7 +46,7 @@ export async function POST(
     await db.$transaction([
       db.member.create({
         data: {
-          name: user.name ?? user.username,
+          name: user.name ?? user.username ?? user.email ?? "Unknown",
           email: user.email,
           groupId: invitation.groupId,
           userId: user.id,
