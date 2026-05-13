@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -26,6 +26,7 @@ function JoinPageInner() {
   const [previewError, setPreviewError] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login?callbackUrl=/join");
@@ -59,8 +60,12 @@ function JoinPageInner() {
   function handleCodeChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
     setCode(val);
-    if (val.length >= 4) lookupCode(val);
-    else { setPreview(null); setPreviewError(""); }
+    setPreview(null);
+    setPreviewError("");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (val.length >= 4) {
+      debounceRef.current = setTimeout(() => lookupCode(val), 400);
+    }
   }
 
   async function handleJoin(e: React.FormEvent) {
@@ -85,7 +90,7 @@ function JoinPageInner() {
       }
 
       const data = await res.json();
-      router.push(`/groups/${data.group.id}`);
+      router.push(`/groups/${data.groupId}`);
     } catch {
       setJoinError("Network error. Please try again.");
     } finally {
