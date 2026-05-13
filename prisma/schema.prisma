@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER (NextAuth compatible)
+// ─────────────────────────────────────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  username      String?   @unique
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts            Account[]
+  sessions            Session[]
+  members             Member[]
+  sentInvitations     GroupInvitation[] @relation("InvitedBy")
+  receivedInvitations GroupInvitation[] @relation("InvitedUser")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP
+// ─────────────────────────────────────────────────────────────────────────────
+model Group {
+  id         String   @id @default(cuid())
+  name       String
+  currency   String   @default("INR")
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members     Member[]
+  expenses    Expense[]
+  settlements Settlement[]
+  activities  Activity[]
+  invitations GroupInvitation[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP INVITATION
+// ─────────────────────────────────────────────────────────────────────────────
+model GroupInvitation {
+  id            String   @id @default(cuid())
+  groupId       String
+  invitedById   String
+  invitedEmail  String
+  invitedUserId String?
+  token         String   @unique
+  /// PENDING | ACCEPTED | DECLINED | EXPIRED
+  status        String   @default("PENDING")
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  group       Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy   User   @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedUser User?  @relation("InvitedUser", fields: [invitedUserId], references: [id])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEMBER
+// ─────────────────────────────────────────────────────────────────────────────
+model Member {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  groupId   String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  group           Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user            User?          @relation(fields: [userId], references: [id])
+  paidExpenses    Expense[]      @relation("PaidBy")
+  expenseSplits   ExpenseSplit[]
+  settlementsFrom Settlement[]   @relation("SettlementFrom")
+  settlementsTo   Settlement[]   @relation("SettlementTo")
+
+  @@unique([userId, groupId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPENSE
+// ─────────────────────────────────────────────────────────────────────────────
+model Expense {
+  id              String    @id @default(cuid())
+  title           String
+  /// Amount stored in integer paise (1 INR = 100 paise) to avoid floating-point errors
+  amountPaise     Int
+  paidById        String
+  groupId         String
+  date            DateTime  @default(now())
+  category        String?
+  notes           String?
+  splitType       String
+  isRecurring     Boolean   @default(false)
+  /// e.g. "monthly", "weekly"
+  recurringPeriod String?
+  receiptUrl      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  group  Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidBy Member         @relation("PaidBy", fields: [paidById], references: [id])
+  splits ExpenseSplit[]
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPENSE SPLIT — individual share for each participant
+// ─────────────────────────────────────────────────────────────────────────────
+model ExpenseSplit {
+  id          String  @id @default(cuid())
+  expenseId   String
+  memberId    String
+  /// Share amount in integer paise
+  amountPaise Int
+  /// Only populated for PERCENTAGE splits; stored as float (e.g. 40.5 for 40.5%)
+  percentage  Float?
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  member  Member  @relation(fields: [memberId], references: [id])
+
+  @@unique([expenseId, memberId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTLEMENT — real payment event, not just a suggestion
+// ─────────────────────────────────────────────────────────────────────────────
+model Settlement {
+  id           String   @id @default(cuid())
+  groupId      String
+  fromMemberId String
+  toMemberId   String
+  /// Amount settled in integer paise
+  amountPaise  Int
+  note         String?
+  createdAt    DateTime @default(now())
+
+  group      Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMember Member @relation("SettlementFrom", fields: [fromMemberId], references: [id])
+  toMember   Member @relation("SettlementTo", fields: [toMemberId], references: [id])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTIVITY — immutable audit log
+// ─────────────────────────────────────────────────────────────────────────────
+model Activity {
+  id        String       @id @default(cuid())
+  groupId   String
+  type      String      
+  /// JSON payload describing the event
+  data      String       // SQLite doesn't have a JSON column; store as text
+  createdAt DateTime     @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
