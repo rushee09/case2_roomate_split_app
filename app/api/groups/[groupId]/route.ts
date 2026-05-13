@@ -16,7 +16,9 @@ export async function GET(
       members: { some: { userId: session.user.id } },
     },
     include: {
-      members: true,
+      members: {
+        include: { user: { select: { username: true } } },
+      },
       expenses: {
         include: { paidBy: true, splits: { include: { member: true } } },
         orderBy: { date: "desc" },

@@ -29,6 +29,7 @@ interface Member {
   id: string;
   name: string;
   email?: string;
+  user?: { username?: string | null } | null;
 }
 
 interface ExpenseSplit {
@@ -333,9 +334,9 @@ function OverviewTab({
               className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2"
             >
               <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-semibold text-xs">
-                {m.name.charAt(0).toUpperCase()}
+                {(m.user?.username ?? m.name).charAt(0).toUpperCase()}
               </div>
-              <span className="text-sm font-medium">{m.name}</span>
+              <span className="text-sm font-medium">{m.user?.username ?? m.name}</span>
             </div>
           ))}
         </div>
