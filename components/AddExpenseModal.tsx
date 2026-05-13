@@ -146,9 +146,9 @@ export function AddExpenseModal({ groupId, members, currency, onClose, onAdded }
         return;
       }
 
-      toast({ title: "Expense added", description: `"${title}" was added successfully.` });
-      onAdded();
       onClose();
+      onAdded();
+      toast({ title: "Expense added", description: `"${title}" was added successfully.` });
     } catch {
       setError("Network error. Please try again.");
     } finally {

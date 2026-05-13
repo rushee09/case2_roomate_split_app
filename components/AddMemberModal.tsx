@@ -63,7 +63,7 @@ export function AddMemberModal({ groupId, onClose, onAdded }: Props) {
         title: "Invitation sent!",
         description: `@${selected.username} will receive an email invite.`,
       });
-      setTimeout(() => { onAdded(); onClose(); }, 1500);
+      setTimeout(() => { onClose(); }, 1500);
     } catch {
       setError("Network error. Please try again.");
       setInviting(false);

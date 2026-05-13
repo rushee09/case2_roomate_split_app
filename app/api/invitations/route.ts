@@ -66,16 +66,13 @@ export async function POST(req: NextRequest) {
   });
 
   const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invitations/${token}`;
-  try {
-    await sendGroupInviteEmail({
-      to: invitee.email,
-      inviterName: inviter?.name ?? inviter?.username ?? "Someone",
-      groupName: group?.name ?? "a group",
-      acceptUrl,
-    });
-  } catch (e) {
-    console.error("[invite] email failed", e);
-  }
+  // Fire email without blocking — DB record already saved
+  sendGroupInviteEmail({
+    to: invitee.email,
+    inviterName: inviter?.name ?? inviter?.username ?? "Someone",
+    groupName: group?.name ?? "a group",
+    acceptUrl,
+  }).catch((e) => console.error("[invite] email failed", e));
 
   return NextResponse.json(invitation, { status: 201 });
 }
