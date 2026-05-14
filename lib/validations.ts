@@ -117,6 +117,9 @@ export const CreateSettlementSchema = z.object({
   fromMemberId: z.string().min(1),
   toMemberId: z.string().min(1),
   amountPaise: z.number().int().positive("Settlement amount must be positive"),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "UPI", "CARD", "OTHER"]).default("CASH"),
+  paymentReference: z.string().max(200).optional(),
+  proofUrl: z.string().url().optional().or(z.literal("")),
   note: z.string().max(200).optional(),
 });
 

@@ -18,7 +18,8 @@ export async function GET(
             splits: true,
           },
         },
-        settlements: true,
+        // Only CONFIRMED settlements reduce outstanding balances
+        settlements: { where: { status: "CONFIRMED" } },
       },
     });
 

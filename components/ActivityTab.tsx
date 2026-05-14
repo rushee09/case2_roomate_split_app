@@ -10,6 +10,8 @@ import {
   Loader2,
   Edit2,
   RefreshCw,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import { formatCurrencyShort } from "@/lib/money";
 
@@ -141,6 +143,17 @@ function getActivityMeta(type: string): {
             currency
           )}) was deleted`,
       };
+    case "SETTLEMENT_RECORDED":
+      return {
+        icon: Clock,
+        color: "text-yellow-400",
+        bg: "bg-yellow-500/15",
+        label: (d, currency) => {
+          const method = d.paymentMethod as string | undefined;
+          const methodLabel = method ? ` via ${formatMethod(method)}` : "";
+          return `${d.fromMemberName as string} recorded a payment of ${formatCurrencyShort(d.amountPaise as number, currency)} to ${d.toMemberName as string}${methodLabel}. Awaiting confirmation.`;
+        },
+      };
     case "SETTLEMENT_COMPLETED":
       return {
         icon: CheckCircle,
@@ -151,6 +164,20 @@ function getActivityMeta(type: string): {
             d.amountPaise as number,
             currency
           )}`,
+      };
+    case "SETTLEMENT_CONFIRMED":
+      return {
+        icon: CheckCircle,
+        color: "text-emerald-400",
+        bg: "bg-emerald-500/15",
+        label: (d) => (d.message as string) ?? `Settlement confirmed`,
+      };
+    case "SETTLEMENT_REJECTED":
+      return {
+        icon: XCircle,
+        color: "text-red-400",
+        bg: "bg-red-500/15",
+        label: (d) => (d.message as string) ?? `Settlement rejected`,
       };
     case "RECURRING_GENERATED":
       return {
@@ -167,4 +194,15 @@ function getActivityMeta(type: string): {
         label: () => type,
       };
   }
+}
+
+function formatMethod(method: string): string {
+  const map: Record<string, string> = {
+    CASH: "Cash",
+    BANK_TRANSFER: "Bank Transfer",
+    UPI: "UPI",
+    CARD: "Card",
+    OTHER: "Other",
+  };
+  return map[method] ?? method;
 }

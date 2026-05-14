@@ -82,6 +82,7 @@ model Group {
   settlements Settlement[]
   activities  Activity[]
   invitations GroupInvitation[]
+  notifications Notification[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,10 +118,12 @@ model Member {
 
   group           Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user            User?          @relation(fields: [userId], references: [id])
-  paidExpenses    Expense[]      @relation("PaidBy")
-  expenseSplits   ExpenseSplit[]
-  settlementsFrom Settlement[]   @relation("SettlementFrom")
-  settlementsTo   Settlement[]   @relation("SettlementTo")
+  paidExpenses           Expense[]      @relation("PaidBy")
+  expenseSplits          ExpenseSplit[]
+  settlementsFrom        Settlement[]   @relation("SettlementFrom")
+  settlementsTo          Settlement[]   @relation("SettlementTo")
+  sentNotifications      Notification[] @relation("NotificationActor")
+  receivedNotifications  Notification[] @relation("NotificationRecipient")
 
   @@unique([userId, groupId])
 }
@@ -174,18 +177,27 @@ model ExpenseSplit {
 // SETTLEMENT — real payment event, not just a suggestion
 // ─────────────────────────────────────────────────────────────────────────────
 model Settlement {
-  id           String   @id @default(cuid())
-  groupId      String
-  fromMemberId String
-  toMemberId   String
+  id               String    @id @default(cuid())
+  groupId          String
+  fromMemberId     String
+  toMemberId       String
   /// Amount settled in integer paise
-  amountPaise  Int
-  note         String?
-  createdAt    DateTime @default(now())
+  amountPaise      Int
+  /// CASH | BANK_TRANSFER | UPI | CARD | OTHER
+  paymentMethod    String    @default("CASH")
+  paymentReference String?
+  proofUrl         String?
+  note             String?
+  /// PENDING_CONFIRMATION | CONFIRMED | REJECTED
+  status           String    @default("PENDING_CONFIRMATION")
+  confirmedAt      DateTime?
+  rejectedAt       DateTime?
+  createdAt        DateTime  @default(now())
 
-  group      Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  fromMember Member @relation("SettlementFrom", fields: [fromMemberId], references: [id])
-  toMember   Member @relation("SettlementTo", fields: [toMemberId], references: [id])
+  group         Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMember    Member         @relation("SettlementFrom", fields: [fromMemberId], references: [id])
+  toMember      Member         @relation("SettlementTo", fields: [toMemberId], references: [id])
+  notifications Notification[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -200,5 +212,27 @@ model Activity {
   createdAt DateTime     @default(now())
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATION — in-app notification records
+// ─────────────────────────────────────────────────────────────────────────────
+model Notification {
+  id                  String   @id @default(cuid())
+  groupId             String
+  recipientMemberId   String
+  actorMemberId       String
+  /// SETTLEMENT_RECORDED | SETTLEMENT_CONFIRMED | SETTLEMENT_REJECTED | SETTLEMENT_REMINDER
+  type                String
+  title               String
+  message             String
+  isRead              Boolean  @default(false)
+  relatedSettlementId String?
+  createdAt           DateTime @default(now())
+
+  group           Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  recipientMember Member      @relation("NotificationRecipient", fields: [recipientMemberId], references: [id])
+  actorMember     Member      @relation("NotificationActor", fields: [actorMemberId], references: [id])
+  settlement      Settlement? @relation(fields: [relatedSettlementId], references: [id])
 }
 

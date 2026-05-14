@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Plus, Users, Receipt, ArrowRight, Wallet, Bell, LogOut, Loader2 } from "lucide-react";
 import { formatCurrencyShort } from "@/lib/money";
+import { NotificationBell } from "@/components/NotificationBell";
 
 interface Group {
   id: string;
@@ -83,6 +84,7 @@ export default function DashboardPage() {
               <Plus className="w-4 h-4" />
               New Group
             </Link>
+            {user?.id && <NotificationBell userId={user.id} />}
             {user?.image ? (
               <img
                 src={user.image}

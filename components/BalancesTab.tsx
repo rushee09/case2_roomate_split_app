@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, ArrowRight, Loader2, CheckCircle, Users } from "lucide-react";
 import { formatCurrencyShort } from "@/lib/money";
-import { toast } from "@/components/ui/use-toast";
+import { SettleUpModal } from "@/components/SettleUpModal";
 
 interface Member {
   id: string;
@@ -39,7 +39,7 @@ export function BalancesTab({ groupId, currency, members, currentMemberId, onSet
   const [suggestions, setSuggestions] = useState<SettlementSuggestion[]>([]);
   const [totalSpend, setTotalSpend] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [settling, setSettling] = useState<string | null>(null);
+  const [settleTarget, setSettleTarget] = useState<SettlementSuggestion | null>(null);
 
   async function fetchBalances() {
     setLoading(true);
@@ -60,40 +60,6 @@ export function BalancesTab({ groupId, currency, members, currentMemberId, onSet
     fetchBalances();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
-
-  async function settleUp(suggestion: SettlementSuggestion) {
-    const key = `${suggestion.fromMemberId}-${suggestion.toMemberId}`;
-    setSettling(key);
-    try {
-      const res = await fetch(`/api/groups/${groupId}/settlements`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fromMemberId: suggestion.fromMemberId,
-          toMemberId: suggestion.toMemberId,
-          amountPaise: suggestion.amountPaise,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        toast({ title: "Error", description: data.error, variant: "destructive" });
-        return;
-      }
-
-      toast({
-        title: "Settlement recorded",
-        description: `You paid ${suggestion.toMemberName} ${formatCurrencyShort(suggestion.amountPaise, currency)}`,
-      });
-
-      await fetchBalances();
-      onSettled();
-    } catch {
-      toast({ title: "Error", description: "Failed to record settlement", variant: "destructive" });
-    } finally {
-      setSettling(null);
-    }
-  }
 
   if (loading) {
     return (
@@ -157,7 +123,6 @@ export function BalancesTab({ groupId, currency, members, currentMemberId, onSet
           <div className="space-y-2">
             {suggestions.map((s) => {
               const key = `${s.fromMemberId}-${s.toMemberId}`;
-              const isSettling = settling === key;
               const isMySettlement = s.fromMemberId === currentMemberId;
               return (
                 <div
@@ -181,15 +146,10 @@ export function BalancesTab({ groupId, currency, members, currentMemberId, onSet
                     </span>
                     {isMySettlement && (
                       <button
-                        onClick={() => settleUp(s)}
-                        disabled={isSettling}
-                        className="bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                        onClick={() => setSettleTarget(s)}
+                        className="bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
                       >
-                        {isSettling ? (
-                          <><Loader2 className="w-3 h-3 animate-spin" /> Settling…</>
-                        ) : (
-                          "Settle Up"
-                        )}
+                        Settle Up
                       </button>
                     )}
                   </div>
@@ -249,6 +209,19 @@ export function BalancesTab({ groupId, currency, members, currentMemberId, onSet
           {formatCurrencyShort(totalSpend, currency)}
         </span>
       </div>
+
+      {settleTarget && (
+        <SettleUpModal
+          groupId={groupId}
+          currency={currency}
+          suggestion={settleTarget}
+          onClose={() => setSettleTarget(null)}
+          onSettled={async () => {
+            await fetchBalances();
+            onSettled();
+          }}
+        />
+      )}
     </div>
   );
 }

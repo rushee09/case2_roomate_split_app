@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
@@ -16,6 +16,7 @@ import {
   Download,
   RefreshCw,
   Loader2,
+  Wallet,
 } from "lucide-react";
 import { formatCurrencyShort } from "@/lib/money";
 import { AddExpenseModal } from "@/components/AddExpenseModal";
@@ -23,8 +24,10 @@ import { AddMemberModal } from "@/components/AddMemberModal";
 import { BalancesTab } from "@/components/BalancesTab";
 import { ExpensesTab } from "@/components/ExpensesTab";
 import { ActivityTab } from "@/components/ActivityTab";
+import { SettlementsTab } from "@/components/SettlementsTab";
+import { NotificationBell } from "@/components/NotificationBell";
 
-type Tab = "overview" | "expenses" | "balances" | "activity";
+type Tab = "overview" | "expenses" | "balances" | "settlements" | "activity";
 
 interface Member {
   id: string;
@@ -78,11 +81,14 @@ export default function GroupPage() {
   const params = useParams();
   const groupId = params.groupId as string;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>(
+    (searchParams.get("tab") as Tab) ?? "overview"
+  );
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -140,6 +146,7 @@ export default function GroupPage() {
     { id: "overview", label: "Overview", icon: BarChart2 },
     { id: "expenses", label: "Expenses", icon: Receipt },
     { id: "balances", label: "Balances", icon: Users },
+    { id: "settlements", label: "Settlements", icon: Wallet },
     { id: "activity", label: "Activity", icon: Clock },
   ];
 
@@ -172,6 +179,7 @@ export default function GroupPage() {
             >
               <Download className="w-4 h-4" />
             </a>
+            {currentMemberId && <NotificationBell memberId={currentMemberId} />}
           </div>
         </div>
       </nav>
@@ -273,6 +281,14 @@ export default function GroupPage() {
             members={group.members}
             currentMemberId={currentMemberId}
             onSettled={fetchGroup}
+          />
+        )}
+        {activeTab === "settlements" && (
+          <SettlementsTab
+            groupId={groupId}
+            currency={group.currency}
+            currentMemberId={currentMemberId}
+            onSettlementUpdated={fetchGroup}
           />
         )}
         {activeTab === "activity" && (
