@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   Plus,
@@ -29,6 +30,7 @@ interface Member {
   id: string;
   name: string;
   email?: string;
+  userId?: string | null;
   user?: { username?: string | null } | null;
 }
 
@@ -76,6 +78,7 @@ export default function GroupPage() {
   const params = useParams();
   const groupId = params.groupId as string;
   const router = useRouter();
+  const { data: session } = useSession();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,6 +132,9 @@ export default function GroupPage() {
   if (!group) return null;
 
   const totalSpend = group.expenses.reduce((sum, e) => sum + e.amountPaise, 0);
+  const currentMemberId = group.members.find(
+    (m) => m.userId === (session?.user as any)?.id
+  )?.id;
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: "overview", label: "Overview", icon: BarChart2 },
@@ -265,6 +271,7 @@ export default function GroupPage() {
             groupId={groupId}
             currency={group.currency}
             members={group.members}
+            currentMemberId={currentMemberId}
             onSettled={fetchGroup}
           />
         )}
