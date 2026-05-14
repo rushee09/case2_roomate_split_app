@@ -12,6 +12,7 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
   const [loading, setLoading] = useState(false);
+  const [switchLoading, setSwitchLoading] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -55,7 +56,7 @@ function LoginPageInner() {
             setLoading(true);
             await signIn("google", { callbackUrl });
           }}
-          disabled={loading}
+          disabled={loading || switchLoading}
           className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold
                      py-3 px-4 rounded-xl hover:bg-gray-100 active:scale-[0.98] transition-all
                      disabled:opacity-60 disabled:cursor-not-allowed"
@@ -66,6 +67,18 @@ function LoginPageInner() {
             <GoogleIcon />
           )}
           Continue with Google
+        </button>
+
+        <button
+          onClick={async () => {
+            setSwitchLoading(true);
+            await signIn("google", { callbackUrl }, { prompt: "select_account" });
+          }}
+          disabled={loading || switchLoading}
+          className="w-full mt-2 text-xs text-muted-foreground hover:text-white transition-colors py-1.5 flex items-center justify-center gap-1 disabled:opacity-50"
+        >
+          {switchLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+          Use a different account
         </button>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">

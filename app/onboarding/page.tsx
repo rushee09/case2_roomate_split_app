@@ -1,9 +1,9 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Loader2, AtSign, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, AtSign, CheckCircle2, XCircle, LogOut } from "lucide-react";
 import Link from "next/link";
 
 export default function OnboardingPage() {
@@ -158,6 +158,20 @@ export default function OnboardingPage() {
             {saving ? "Setting up..." : "Claim Username & Continue"}
           </button>
         </form>
+
+        <div className="mt-6 pt-5 border-t border-white/5 text-center">
+          <p className="text-xs text-muted-foreground mb-2">
+            Signed in as{" "}
+            <span className="text-white font-medium">{session?.user?.email}</span>
+          </p>
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Wrong account? Sign out
+          </button>
+        </div>
       </div>
     </div>
   );
