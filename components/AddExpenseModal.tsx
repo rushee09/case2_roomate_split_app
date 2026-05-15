@@ -8,14 +8,23 @@ import { formatCurrencyShort } from "@/lib/money";
 interface Member {
   id: string;
   name: string;
+  user?: { username?: string | null } | null;
 }
 
 interface Props {
   groupId: string;
   members: Member[];
   currency: string;
+  currentMemberId?: string;
   onClose: () => void;
   onAdded: () => void;
+}
+
+function getDisplayName(m: Member): string {
+  if (m.user?.username) return m.user.username;
+  // If name looks like an email, strip the domain
+  if (m.name.includes("@")) return m.name.split("@")[0];
+  return m.name;
 }
 
 type SplitType = "EQUAL" | "PERCENTAGE" | "EXACT";
@@ -25,10 +34,10 @@ const CATEGORIES = [
   "Entertainment", "Health", "Shopping", "Other",
 ];
 
-export function AddExpenseModal({ groupId, members, currency, onClose, onAdded }: Props) {
+export function AddExpenseModal({ groupId, members, currency, currentMemberId, onClose, onAdded }: Props) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [paidById, setPaidById] = useState(members[0]?.id ?? "");
+  const [paidById, setPaidById] = useState(currentMemberId ?? members[0]?.id ?? "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [category, setCategory] = useState("Food");
   const [notes, setNotes] = useState("");
@@ -218,17 +227,9 @@ export function AddExpenseModal({ groupId, members, currency, onClose, onAdded }
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                 PAID BY
               </label>
-              <select
-                value={paidById}
-                onChange={(e) => setPaidById(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-colors appearance-none"
-              >
-                {members.map((m) => (
-                  <option key={m.id} value={m.id} className="bg-navy-900">
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white">
+                {getDisplayName(members.find((m) => m.id === paidById) ?? members[0])}
+              </div>
             </div>
           </div>
 
@@ -304,7 +305,7 @@ export function AddExpenseModal({ groupId, members, currency, onClose, onAdded }
                         : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
                     }`}
                   >
-                    {m.name}
+                    {getDisplayName(m)}
                     {equalMemberIds.includes(m.id) && amountNum > 0 && (
                       <span className="opacity-70 font-mono">
                         {formatCurrencyShort(
@@ -338,7 +339,7 @@ export function AddExpenseModal({ groupId, members, currency, onClose, onAdded }
                   const member = members.find((m) => m.id === s.memberId);
                   return (
                     <div key={s.memberId} className="flex items-center gap-3">
-                      <span className="text-sm w-20 truncate">{member?.name}</span>
+                      <span className="text-sm w-20 truncate">{member ? getDisplayName(member) : ""}</span>
                       <div className="flex-1 relative">
                         <input
                           type="number"
@@ -383,7 +384,7 @@ export function AddExpenseModal({ groupId, members, currency, onClose, onAdded }
                   const member = members.find((m) => m.id === s.memberId);
                   return (
                     <div key={s.memberId} className="flex items-center gap-3">
-                      <span className="text-sm w-20 truncate">{member?.name}</span>
+                      <span className="text-sm w-20 truncate">{member ? getDisplayName(member) : ""}</span>
                       <div className="flex-1 relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                           {currency === "INR" ? "₹" : currency}

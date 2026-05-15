@@ -10,8 +10,12 @@ Split shared expenses with roommates. Track who paid, who owes what, and settle 
 - Unique username setup on first login (onboarding flow)
 - Create groups with currency support: INR, USD, EUR, GBP, AED
 - Add expenses with equal, percentage, or exact-amount splits
+- Optional expense metadata: category, notes, receipt URL, recurring schedule
 - Balance engine with minimum-transaction settlement suggestions
-- Record settlements to mark debts as paid
+- Settlement workflow with payment method selection (Cash, UPI, Bank Transfer, Card) and optional proof/reference
+- Settlement confirmation flow — payee must confirm or reject a recorded payment
+- In-app notification bell for settlement events (recorded, confirmed, rejected, reminder)
+- Automated daily cron reminder for settlements pending confirmation > 15 days
 - Activity log per group (expenses added, members joined, settlements recorded)
 - Invite members by email — tokenized links with accept/decline
 - Join groups via shareable invite code
@@ -53,6 +57,8 @@ cd case2_roomate_split_app
 npm install
 ```
 
+> `prisma generate` runs automatically via the `postinstall` script.
+
 ### 2. Configure environment
 
 ```bash
@@ -83,6 +89,9 @@ SMTP_PORT="587"
 SMTP_USER="<your-gmail>"
 SMTP_PASS="<gmail-app-password>"
 
+# Cron protection (optional — required for settlement reminder cron)
+CRON_SECRET=""
+
 # Public
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_NAME="Pocket"
@@ -92,7 +101,6 @@ NEXT_PUBLIC_APP_NAME="Pocket"
 
 ```bash
 npx prisma migrate dev
-npx prisma generate
 ```
 
 ### 4. Install Python backend dependencies
@@ -147,6 +155,7 @@ npm run dev
 | `npm run db:migrate` | Run Prisma migrations (dev) |
 | `npm run db:migrate:prod` | Deploy migrations to production |
 | `npm run db:generate` | Regenerate Prisma client |
+| `npm run db:seed` | Seed the database |
 | `npm run db:studio` | Open Prisma Studio |
 | `npm run db:reset` | Reset DB and re-seed |
 | `npm test` | Run unit tests (Vitest) |
@@ -187,6 +196,15 @@ railway up
 
 Set `FASTAPI_URL` in your Netlify environment variables to the deployed backend URL. The frontend proxies all `/api/py/*` calls to FastAPI.
 
+### Settlement Reminder Cron
+
+`GET /api/cron/settlement-reminders` sends in-app reminders for settlements that have been `PENDING_CONFIRMATION` for more than 15 days. Protect it with `CRON_SECRET` and schedule it to run daily.
+
+Example Vercel cron config (`vercel.json`):
+```json
+{ "crons": [{ "path": "/api/cron/settlement-reminders?secret=<CRON_SECRET>", "schedule": "0 9 * * *" }] }
+```
+
 ---
 
 ## Project Structure
@@ -195,16 +213,21 @@ Set `FASTAPI_URL` in your Netlify environment variables to the deployed backend 
 ├── app/                        # Next.js App Router
 │   ├── api/
 │   │   ├── auth/[...nextauth]/ # NextAuth handler
+│   │   ├── cron/
+│   │   │   └── settlement-reminders/ # Daily reminder cron
 │   │   ├── groups/             # Group CRUD + sub-resources
 │   │   │   └── [groupId]/
 │   │   │       ├── activity/
 │   │   │       ├── balances/
 │   │   │       ├── expenses/
+│   │   │       │   └── [expenseId]/
 │   │   │       ├── export/
 │   │   │       ├── members/
 │   │   │       └── settlements/
+│   │   │           └── [settlementId]/
 │   │   ├── invitations/        # Email invitation flow
 │   │   ├── join/               # Join via invite code
+│   │   ├── notifications/      # In-app notifications
 │   │   └── users/              # Current user + search
 │   ├── dashboard/              # Main dashboard page
 │   ├── groups/
@@ -227,14 +250,19 @@ Set `FASTAPI_URL` in your Netlify environment variables to the deployed backend 
 │   ├── AddMemberModal.tsx
 │   ├── BalancesTab.tsx
 │   ├── ExpensesTab.tsx
+│   ├── NotificationBell.tsx
+│   ├── SettlementsTab.tsx
+│   ├── SettleUpModal.tsx
 │   └── ui/                     # button, toast, toaster
 ├── lib/                        # Shared utilities
 │   ├── auth.ts                 # NextAuth config
 │   ├── balance.ts              # Balance engine (TypeScript)
 │   ├── db.ts                   # Prisma client singleton
-│   ├── mail.ts                 # Nodemailer helpers
+│   ├── email_service.ts        # Email helpers
+│   ├── mail.ts                 # Nodemailer config
 │   ├── money.ts                # Paise conversion + formatting
 │   ├── proxy.ts                # FastAPI proxy helper
+│   ├── utils.ts                # Shared utilities
 │   └── validations.ts          # Zod schemas
 ├── prisma/
 │   ├── schema.prisma           # DB schema
@@ -255,10 +283,11 @@ Set `FASTAPI_URL` in your Netlify environment variables to the deployed backend 
 | `Account` / `Session` | NextAuth OAuth tables |
 | `Group` | Expense group with currency and invite code |
 | `Member` | Group participant; optionally linked to a `User` |
-| `Expense` | A paid expense with one or more splits |
+| `Expense` | A paid expense with splits, optional category, notes, receipt, and recurring schedule |
 | `ExpenseSplit` | Per-member share of an expense (paise) |
-| `Settlement` | A recorded payment between two members |
-| `Activity` | Audit log entry for a group |
+| `Settlement` | A recorded payment between two members; tracks payment method, reference, proof, and confirmation status (`PENDING_CONFIRMATION / CONFIRMED / REJECTED`) |
+| `Activity` | Immutable audit log entry for a group |
+| `Notification` | In-app notification for settlement events (`SETTLEMENT_RECORDED / SETTLEMENT_CONFIRMED / SETTLEMENT_REJECTED / SETTLEMENT_REMINDER`) |
 | `GroupInvitation` | Tokenized email invite (`PENDING / ACCEPTED / DECLINED / EXPIRED`) |
 
 ---
@@ -272,5 +301,5 @@ All monetary values are stored as **integer paise** (smallest unit) to eliminate
 120050     →  ₹1,200.50     (formatted for display)
 ```
 
-Helpers in `lib/money.ts`: `toPaise()`, `toINR()`, `formatCurrency()`, `calcEqualSplits()`, `calcPercentageSplits()`, `validateExactSplits()`.
+Helpers in `lib/money.ts`: `toPaise()`, `toINR()`, `formatCurrency()`, `formatCurrencyShort()`, `calcEqualSplits()`, `calcPercentageSplits()`, `validateExactSplits()`.
 

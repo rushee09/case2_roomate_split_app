@@ -302,6 +302,7 @@ export default function GroupPage() {
           groupId={groupId}
           members={group.members}
           currency={group.currency}
+          currentMemberId={currentMemberId}
           onClose={() => setShowAddExpense(false)}
           onAdded={fetchGroup}
         />
