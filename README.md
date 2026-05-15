@@ -186,7 +186,7 @@ The `netlify.toml` and `@netlify/plugin-nextjs` are pre-configured.
 
 ### Backend — FastAPI
 
-Deploy to Railway, Render, or Fly.io:
+Deploy to Railway, Render, or Fly.io
 
 ```bash
 # Railway example
